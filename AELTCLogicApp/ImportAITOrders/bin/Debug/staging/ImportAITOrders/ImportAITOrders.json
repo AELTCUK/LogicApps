@@ -1,0 +1,614 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "logicAppName": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 80,
+      "metadata": {
+        "description": "Name of the Logic App."
+      }
+    },
+    "logicAppLocation": {
+      "type": "string",
+      "defaultValue": "uksouth",
+      "allowedValues": [
+        "[resourceGroup().location]",
+        "eastasia",
+        "southeastasia",
+        "centralus",
+        "eastus",
+        "eastus2",
+        "westus",
+        "northcentralus",
+        "southcentralus",
+        "northeurope",
+        "westeurope",
+        "japanwest",
+        "japaneast",
+        "brazilsouth",
+        "australiaeast",
+        "australiasoutheast",
+        "southindia",
+        "centralindia",
+        "westindia",
+        "canadacentral",
+        "canadaeast",
+        "uksouth",
+        "ukwest",
+        "westcentralus",
+        "westus2",
+        "koreacentral",
+        "koreasouth",
+        "francecentral",
+        "francesouth"
+      ],
+      "metadata": {
+        "description": "Location of the Logic App."
+      }
+    },
+    "orgID": {
+      "type": "string",
+      "defaultValue": {},
+      "metadata": {
+        "description": "Organisation identity"
+      }
+    },
+    "userID": {
+      "type": "string",
+      "defaultValue": {},
+      "metadata": {
+        "description": "User Identity"
+      }
+    },
+    "passwordHash": {
+      "type": "securestring",
+      "defaultValue": {},
+      "metadata": {
+        "description": "Password"
+      }
+    },
+    "ServiceURI": {
+      "type": "string",
+      "defaultValue": {},
+      "metadata": {
+        "description": "Service Path"
+      }
+    },
+    "sql_1_Connection_Name": {
+      "type": "string",
+      "defaultValue": "sql"
+    },
+    "sql_1_Connection_DisplayName": {
+      "type": "string",
+      "defaultValue": "AzureODS"
+    },
+    "sql_1_server": {
+      "type": "string",
+      "metadata": {
+        "description": "SQL server name"
+      },
+      "defaultValue": {}
+    },
+    "sql_1_database": {
+      "type": "string",
+      "metadata": {
+        "description": "SQL database name"
+      },
+      "defaultValue": "AELTCODS"
+    },
+    "sql_1_username": {
+      "type": "securestring",
+      "metadata": {
+        "description": "Username credential"
+      }
+    },
+    "sql_1_password": {
+      "type": "securestring",
+      "metadata": {
+        "description": "Password credential"
+      }
+    },
+    "sql_1_sqlConnectionString": {
+      "type": "securestring",
+      "metadata": {
+        "description": "SQL Connection String"
+      }
+    }
+  },
+  "variables": {},
+  "resources": [
+    {
+      "name": "[parameters('logicAppName')]",
+      "type": "Microsoft.Logic/workflows",
+      "location": "[parameters('logicAppLocation')]",
+      "tags": {
+        "displayName": "LogicApp"
+      },
+      "apiVersion": "2016-06-01",
+      "properties": {
+        "definition": {
+          "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+          "actions": {
+            "Execute_a_SQL_query_-Get_Last_OrderID": {
+              "type": "ApiConnection",
+              "inputs": {
+                "host": {
+                  "connection": {
+                    "name": "@parameters('$connections')['sql']['connectionId']"
+                  }
+                },
+                "method": "post",
+                "body": {
+                  "query": "SELECT MAX(COALESCE(OrderID,0)) MaxOrderID FROM [import].TktSalesOrder"
+                },
+                "path": "/v2/datasets/@{encodeURIComponent(encodeURIComponent('aeltcsql-dev.database.windows.net'))},@{encodeURIComponent(encodeURIComponent('AELTCODS'))}/query/sql"
+              },
+              "runAfter": {}
+            },
+            "Initialize_variable_-_LastOrderID": {
+              "type": "InitializeVariable",
+              "inputs": {
+                "variables": [
+                  {
+                    "name": "LastOrderID",
+                    "type": "Integer",
+                    "value": "@body('Execute_a_SQL_query_-Get_Last_OrderID')?['resultsets']?['Table1'][0]['maxOrderID']"
+                  }
+                ]
+              },
+              "runAfter": {
+                "Execute_a_SQL_query_-Get_Last_OrderID": [
+                  "Succeeded"
+                ]
+              }
+            },
+            "HTTP_-_Get_Orders": {
+              "type": "Http",
+              "inputs": {
+                "method": "GET",
+                "uri": "@parameters('$serviceuri')",
+                "queries": {
+                  "orgId": "@parameters('$orgid')",
+                  "userId": "@parameters('$userid')",
+                  "passwordHash": "@parameters('$passwordhash')",
+                  "lastTransactionId": "@{variables('LastOrderID')}"
+                }
+              },
+              "runAfter": {
+                "Initialize_variable_-_LastOrderID": [
+                  "Succeeded"
+                ]
+              }
+            },
+            "Initialize_variable-V1.2": {
+              "type": "InitializeVariable",
+              "inputs": {
+                "variables": [
+                  {
+                    "name": "TestVariable",
+                    "type": "String",
+                    "value": "Test"
+                  }
+                ]
+              },
+              "runAfter": {
+                "HTTP_-_Get_Orders": [
+                  "Succeeded"
+                ]
+              }
+            },
+            "Parse_JSON_-_Response": {
+              "type": "ParseJson",
+              "inputs": {
+                "content": "@body('HTTP_-_Get_Orders')",
+                "schema": {
+                  "$schema": "http://json-schema.org/draft-04/schema#",
+                  "items": [
+                    {
+                      "properties": {
+                        "closeTime": {
+                          "type": "string"
+                        },
+                        "openTime": {
+                          "type": "string"
+                        },
+                        "operatorId": {
+                          "type": "integer"
+                        },
+                        "orderId": {
+                          "type": "integer"
+                        },
+                        "products": {
+                          "items": [
+                            {
+                              "properties": {
+                                "productGroupId": {
+                                  "type": "integer"
+                                },
+                                "productId": {
+                                  "type": "integer"
+                                },
+                                "quantity": {
+                                  "type": "integer"
+                                },
+                                "taxValue": {
+                                  "type": "number"
+                                },
+                                "value": {
+                                  "type": "number"
+                                }
+                              },
+                              "required": [
+                                "productId",
+                                "productGroupId",
+                                "quantity",
+                                "taxValue",
+                                "value"
+                              ],
+                              "type": "object"
+                            }
+                          ],
+                          "type": "array"
+                        },
+                        "reference": {
+                          "type": "null"
+                        },
+                        "sessionId": {
+                          "type": "integer"
+                        },
+                        "tenders": {
+                          "items": [
+                            {
+                              "properties": {
+                                "tenderId": {
+                                  "type": "integer"
+                                },
+                                "value": {
+                                  "type": "number"
+                                }
+                              },
+                              "required": [
+                                "tenderId",
+                                "value"
+                              ],
+                              "type": "object"
+                            }
+                          ],
+                          "type": "array"
+                        },
+                        "terminalId": {
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "orderId",
+                        "openTime",
+                        "closeTime",
+                        "operatorId",
+                        "terminalId",
+                        "sessionId",
+                        "reference",
+                        "products",
+                        "tenders"
+                      ],
+                      "type": "object"
+                    },
+                    {
+                      "properties": {
+                        "closeTime": {
+                          "type": "string"
+                        },
+                        "openTime": {
+                          "type": "string"
+                        },
+                        "operatorId": {
+                          "type": "integer"
+                        },
+                        "orderId": {
+                          "type": "integer"
+                        },
+                        "products": {
+                          "items": [
+                            {
+                              "properties": {
+                                "productGroupId": {
+                                  "type": "integer"
+                                },
+                                "productId": {
+                                  "type": "integer"
+                                },
+                                "quantity": {
+                                  "type": "integer"
+                                },
+                                "taxValue": {
+                                  "type": "number"
+                                },
+                                "value": {
+                                  "type": "number"
+                                }
+                              },
+                              "required": [
+                                "productId",
+                                "productGroupId",
+                                "quantity",
+                                "taxValue",
+                                "value"
+                              ],
+                              "type": "object"
+                            }
+                          ],
+                          "type": "array"
+                        },
+                        "reference": {
+                          "type": "null"
+                        },
+                        "sessionId": {
+                          "type": "integer"
+                        },
+                        "tenders": {
+                          "items": [
+                            {
+                              "properties": {
+                                "tenderId": {
+                                  "type": "integer"
+                                },
+                                "value": {
+                                  "type": "number"
+                                }
+                              },
+                              "required": [
+                                "tenderId",
+                                "value"
+                              ],
+                              "type": "object"
+                            }
+                          ],
+                          "type": "array"
+                        },
+                        "terminalId": {
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "orderId",
+                        "openTime",
+                        "closeTime",
+                        "operatorId",
+                        "terminalId",
+                        "sessionId",
+                        "reference",
+                        "products",
+                        "tenders"
+                      ],
+                      "type": "object"
+                    }
+                  ],
+                  "type": "array"
+                }
+              },
+              "runAfter": {
+                "Initialize_variable-V1.2": [
+                  "Succeeded"
+                ]
+              }
+            },
+            "For_each_-_Orders": {
+              "type": "Foreach",
+              "foreach": "@body('Parse_JSON_-_Response')",
+              "actions": {
+                "Parse_JSON_-_Order": {
+                  "type": "ParseJson",
+                  "inputs": {
+                    "content": "@items('For_each_-_Orders')",
+                    "schema": {
+                      "properties": {
+                        "closeTime": {
+                          "type": "string"
+                        },
+                        "openTime": {
+                          "type": "string"
+                        },
+                        "operatorId": {
+                          "type": "integer"
+                        },
+                        "orderId": {
+                          "type": "integer"
+                        },
+                        "products": {
+                          "items": {
+                            "properties": {
+                              "productGroupId": {
+                                "type": "integer"
+                              },
+                              "productId": {
+                                "type": "integer"
+                              },
+                              "quantity": {
+                                "type": "integer"
+                              },
+                              "taxValue": {
+                                "type": "integer"
+                              },
+                              "value": {
+                                "type": "integer"
+                              }
+                            },
+                            "required": [
+                              "productId",
+                              "productGroupId",
+                              "quantity",
+                              "taxValue",
+                              "value"
+                            ],
+                            "type": "object"
+                          },
+                          "type": "array"
+                        },
+                        "reference": {},
+                        "sessionId": {
+                          "type": "integer"
+                        },
+                        "tenders": {
+                          "items": {
+                            "properties": {
+                              "tenderId": {
+                                "type": "integer"
+                              },
+                              "value": {
+                                "type": "integer"
+                              }
+                            },
+                            "required": [
+                              "tenderId",
+                              "value"
+                            ],
+                            "type": "object"
+                          },
+                          "type": "array"
+                        },
+                        "terminalId": {
+                          "type": "integer"
+                        }
+                      },
+                      "type": "object"
+                    }
+                  },
+                  "runAfter": {}
+                },
+                "Insert_row_-Order": {
+                  "type": "ApiConnection",
+                  "inputs": {
+                    "host": {
+                      "connection": {
+                        "name": "@parameters('$connections')['sql']['connectionId']"
+                      }
+                    },
+                    "method": "post",
+                    "body": {
+                      "OrderType": "@{parameters('ordertype')}",
+                      "OrderID": "@body('Parse_JSON_-_Order')?['orderId']",
+                      "OrderTime": "@body('Parse_JSON_-_Order')?['closeTime']",
+                      "TerminalId": "@body('Parse_JSON_-_Order')?['terminalId']",
+                      "OperatorID": "@body('Parse_JSON_-_Order')?['operatorId']"
+                    },
+                    "path": "/v2/datasets/@{encodeURIComponent(encodeURIComponent('aeltcsql-dev.database.windows.net'))},@{encodeURIComponent(encodeURIComponent('AELTCODS'))}/tables/@{encodeURIComponent(encodeURIComponent('[import].[TktSalesOrder]'))}/items"
+                  },
+                  "runAfter": {
+                    "Parse_JSON_-_Order": [
+                      "Succeeded"
+                    ]
+                  }
+                },
+                "For_each_-_Product": {
+                  "type": "Foreach",
+                  "foreach": "@body('Parse_JSON_-_Order')?['products']",
+                  "actions": {
+                    "Insert_row_-_Order_Detail": {
+                      "type": "ApiConnection",
+                      "inputs": {
+                        "host": {
+                          "connection": {
+                            "name": "@parameters('$connections')['sql']['connectionId']"
+                          }
+                        },
+                        "method": "post",
+                        "body": {
+                          "OrderRefID": "@body('Parse_JSON_-_Order')?['orderId']",
+                          "ProductID": "@items('For_each_-_Product')?['productId']",
+                          "ProductGroupID": "@items('For_each_-_Product')?['productGroupId']",
+                          "Quantity": "@items('For_each_-_Product')?['quantity']",
+                          "SaleValue": "@{items('For_each_-_Product')?['value']}"
+                        },
+                        "path": "/v2/datasets/@{encodeURIComponent(encodeURIComponent('aeltcsql-dev.database.windows.net'))},@{encodeURIComponent(encodeURIComponent('AELTCODS'))}/tables/@{encodeURIComponent(encodeURIComponent('[import].[TktSalesOrderDetail]'))}/items"
+                      },
+                      "runAfter": {}
+                    }
+                  },
+                  "runAfter": {
+                    "Insert_row_-Order": [
+                      "Succeeded"
+                    ]
+                  }
+                }
+              },
+              "runAfter": {
+                "Parse_JSON_-_Response": [
+                  "Succeeded"
+                ]
+              }
+            }
+          },
+          "parameters": {
+            "$connections": {
+              "defaultValue": {},
+              "type": "Object"
+            },
+            "$userid": {
+              "defaultValue": "[parameters('userID')]",
+              "type": "String"
+            },
+            "$orgid": {
+              "defaultValue": "[parameters('orgID')]",
+              "type": "String"
+            },
+            "$passwordhash": {
+              "defaultValue": "[parameters('passwordHash')]",
+              "type": "SecureString"
+            },
+            "$serviceuri": {
+              "defaultValue": "[parameters('ServiceURI')]",
+              "type": "String"
+            }
+          },
+          "triggers": {
+            "Recurrence": {
+              "type": "Recurrence",
+              "recurrence": {
+                "frequency": "Minute",
+                "interval": 3
+              }
+            }
+          },
+          "contentVersion": "1.0.0.0",
+          "outputs": {}
+        },
+        "parameters": {
+          "$connections": {
+            "value": {
+              "sql": {
+                "id": "[concat(subscription().id, '/providers/Microsoft.Web/locations/', parameters('logicAppLocation'), '/managedApis/', 'sql')]",
+                "connectionId": "[resourceId('Microsoft.Web/connections', parameters('sql_1_Connection_Name'))]",
+                "connectionName": "[parameters('sql_1_Connection_Name')]"
+              }
+            }
+          }
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Web/connections', parameters('sql_1_Connection_Name'))]"
+      ]
+    },
+    {
+      "type": "MICROSOFT.WEB/CONNECTIONS",
+      "apiVersion": "2016-06-01",
+      "name": "[parameters('sql_1_Connection_Name')]",
+      "location": "[parameters('logicAppLocation')]",
+      "properties": {
+        "api": {
+          "id": "[concat(subscription().id, '/providers/Microsoft.Web/locations/', parameters('logicAppLocation'), '/managedApis/', 'sql')]"
+        },
+        "displayName": "[parameters('sql_1_Connection_DisplayName')]",
+        "parameterValues": {
+          "server": "[parameters('sql_1_server')]",
+          "database": "[parameters('sql_1_database')]",
+          "username": "[parameters('sql_1_username')]",
+          "password": "[parameters('sql_1_password')]",
+          "sqlConnectionString": "[parameters('sql_1_sqlConnectionString')]"
+        }
+      }
+    }
+  ],
+  "outputs": {}
+}

@@ -1,0 +1,1 @@
+C:\Work\Azure\LogicApps\AELTCLogicApp\ImportAITOrders\obj\Debug\ImportAITOrders.deployproj.CoreCompileInputs.cache

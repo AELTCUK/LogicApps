@@ -1,0 +1,36 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "logicAppName": {
+      "value": "ImportAITOrderTest"
+    },
+    "userID": { "value": "21" },
+    "orgID": { "value": "WIMZL" },
+    "passwordHash": {
+      "reference": {
+        "keyVault": {
+          "id": "/subscriptions/2f683b9e-b96f-462f-a20d-090a6f9f762f/resourceGroups/AELTCLogicApp/providers/Microsoft.KeyVault/vaults/AELTCKeyVault"
+        },
+        "secretName": "AITPassword"
+      } },
+    "sql_1_username": {
+      "reference": {
+        "keyVault": {
+          "id": "/subscriptions/2f683b9e-b96f-462f-a20d-090a6f9f762f/resourceGroups/AELTCLogicApp/providers/Microsoft.KeyVault/vaults/AELTCKeyVault"
+        },
+        "secretName": "SQLUserName-ODS-DEV"
+      }
+    },
+    "sql_1_password": {
+      "reference": {
+        "keyVault": {
+          "id": "/subscriptions/2f683b9e-b96f-462f-a20d-090a6f9f762f/resourceGroups/AELTCLogicApp/providers/Microsoft.KeyVault/vaults/AELTCKeyVault"
+        },
+        "secretName": "SQLUserPswd-ODS-DEV"
+      }
+    },
+    "sql_1_server": { "value": "aeltcsql-dev.database.windows.net" },
+    "serviceURI": { "value": "https://admin.kappture.co.uk/api/api/transaction/?" }
+  }
+}

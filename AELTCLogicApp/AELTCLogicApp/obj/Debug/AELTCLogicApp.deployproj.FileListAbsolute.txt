@@ -1,0 +1,1 @@
+C:\Work\Azure\LogicApps\AELTCLogicApp\AELTCLogicApp\obj\Debug\AELTCLogicApp.deployproj.CoreCompileInputs.cache

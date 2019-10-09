@@ -1,0 +1,21 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "logicAppName": {
+      "value": "Import-AITProducts"
+    },
+    "orgID": { "value": "WIMZL" },
+    "userID": { "value": "21" },
+    "passwordHash": { "value": "98C09AA5DC88CC18292988509AFE7545C327105B43F808A54963658110B09024" },
+    "sql_1_username": {
+      "value": "aeltcadmin"
+    },
+    "sql_1_password": {
+      "value": "Trustn01"
+    },
+    "serviceURI": { "value": "https://admin.kappture.co.uk/api/api/product/?" },
+    "sql_1_server": { "value": "aeltcsql-dev.database.windows.net" }
+
+  }
+}
